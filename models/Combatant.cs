@@ -15,6 +15,8 @@ namespace DiscordRPGController.models
         public PlayerCharacter? PlayerCharacter { get; set; }
         public int TurnOrder {  get; set; }
         public int TeamId { get; set; }
+
+        public string? ChannelId { get; set; }
         public required Team Team { get; set; }
 
         public required string Name { get; set; }

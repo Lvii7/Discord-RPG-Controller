@@ -28,31 +28,33 @@ namespace DiscordRPGController.ui
             {
                 int emojiHP = 0;
                 int emojiSP = 0;
-                if (HPblocks >= 2)
+
+                switch (HPblocks)
                 {
-                    emojiHP = 2;
-                    HPblocks -= 2;
-                }
-                else
-                {
-                    if (HPblocks == 1)
-                    {
+                    case >= 2:
+                        emojiHP = 2;
+                        HPblocks -= 2;
+                        break;
+                    case 1:
                         emojiHP = 1;
-                        HPblocks = 0;
-                    }
+                        HPblocks = 1;
+                        break;
+                    default:
+                        break;
                 }
-                if (SPblocks >= 2)
+
+                switch (SPblocks)
                 {
-                    emojiSP = 2;
-                    SPblocks -= 2;
-                }
-                else
-                {
-                    if (SPblocks == 1)
-                    {
+                    case >= 2:
+                        emojiSP = 2;
+                        SPblocks -= 2;
+                        break;
+                    case 1:
                         emojiSP = 1;
-                        SPblocks = 0;
-                    }
+                        SPblocks = 1;
+                        break;
+                    default:
+                        break;
                 }
 
                 string emojiName = $"hp{emojiHP}sp{emojiSP}";
@@ -82,7 +84,7 @@ namespace DiscordRPGController.ui
    
             var embed = new DiscordEmbedBuilder
             {
-                Description = $"## **`{player.Name}`**\n" +
+                Description = $"**`{player.Name}`**\n" +
                               $"**`Level {player.Level}\n`**" +
                               $"`HP: {player.HP, 3}/{player.MaxHP, 3} | SP: {player.SP, 3}/{player.MaxSP, 3}`\n"+
                               $"{emojiString}\n"+ 
@@ -168,10 +170,10 @@ namespace DiscordRPGController.ui
                 switch (combatant.Team.TeamNumber)
                 {
                     case 1:
-                        setEmbedColor = DiscordColor.Blue;
+                        setEmbedColor = DiscordColor.Red;
                         break;
                     case 2:
-                        setEmbedColor = DiscordColor.Red;
+                        setEmbedColor = DiscordColor.Blue;
                         break;
                     case 3:
                         setEmbedColor = DiscordColor.Yellow;
@@ -183,7 +185,7 @@ namespace DiscordRPGController.ui
             }
             var embed = new DiscordEmbedBuilder
             {
-                Description = $"## **`{combatant.Name}`**\n" +
+                Description = $"**`{combatant.Name}`**\n" +
                               $"`HP: {combatant.HP,3}/{combatant.MaxHP,3} | SP: {combatant.SP,3}/{combatant.MaxSP,3}`\n" +
                               $"{emojiString}\n" +
                               $"`ATK: {combatant.ATK} | DEF: {combatant.DEF} | Dice: {combatant.Dice,2} | Energy: {combatant.Energy}`",

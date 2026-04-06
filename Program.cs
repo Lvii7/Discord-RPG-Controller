@@ -18,8 +18,8 @@ namespace DiscordRPGController
 {
     public sealed class Program
     {
-        public static DiscordClient Client { get; set; }
-        public static CommandsNextExtension Commands { get; set; }
+        public static DiscordClient? Client { get; set; }
+        public static CommandsNextExtension? Commands { get; set; }
 
         static async Task Main(string[] args)
         {
@@ -32,14 +32,14 @@ namespace DiscordRPGController
                 .Options;
 
             // ---- DEV-FRIENDLY MIGRATION HANDLING ----
-            // If you want to wipe the DB in dev mode, uncomment the next line:
+            // currenly rebuilding the database from scratch as i set everything up
             if (File.Exists(dbFile)) File.Delete(dbFile);
 
             using (var db = new BotDbContext(options))
             {
                 try
                 {
-                    // Automatically apply all pending migrations
+                    // automatically apply all pending migrations (hopefully...!)
                     await db.Database.MigrateAsync();
 
                     string[] defaultPlayerNames = { "Red", "Blue", "Yellow", "Green" };
@@ -50,6 +50,10 @@ namespace DiscordRPGController
                         {
                             UserId = "0",
                             Name = defaultPlayerNames[i],
+                            // 0, 2, 4, 6
+                            // 6, 3, 0, -3
+                            ATK = i * 2,
+                            DEF = 6 - (i * 3),
                             Level = 1
                         };
 
@@ -62,9 +66,8 @@ namespace DiscordRPGController
                 catch (Exception ex)
                 {
                     Console.WriteLine("Migration failed: " + ex.Message);
-                    // Optional: for dev, delete the DB and retry
-                    // File.Delete(dbFile);
-                    // await db.Database.MigrateAsync();
+                   
+                    await db.Database.MigrateAsync();
                     throw;
                 }
             }
@@ -110,6 +113,7 @@ namespace DiscordRPGController
             var slashCommandsConfig = Client.UseSlashCommands();
             slashCommandsConfig.RegisterCommands<CharacterCommandsSlash>();
             slashCommandsConfig.RegisterCommands<BattleCommandsContainer>();
+            slashCommandsConfig.RegisterCommands<AttackCommandsContainer>();
 
             // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 

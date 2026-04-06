@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DiscordRPGController.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class patch0 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,6 +19,7 @@ namespace DiscordRPGController.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     ChannelId = table.Column<string>(type: "TEXT", nullable: false),
                     TeamCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    CurrentTurn = table.Column<int>(type: "INTEGER", nullable: false),
                     LastUpdated = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -57,7 +58,7 @@ namespace DiscordRPGController.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Team",
+                name: "Teams",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
@@ -68,9 +69,9 @@ namespace DiscordRPGController.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Team", x => x.Id);
+                    table.PrimaryKey("PK_Teams", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Team_Battles_BattleId",
+                        name: "FK_Teams_Battles_BattleId",
                         column: x => x.BattleId,
                         principalTable: "Battles",
                         principalColumn: "Id",
@@ -78,7 +79,7 @@ namespace DiscordRPGController.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Combatant",
+                name: "Combatants",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
@@ -86,6 +87,7 @@ namespace DiscordRPGController.Migrations
                     PlayerCharacterId = table.Column<int>(type: "INTEGER", nullable: true),
                     TurnOrder = table.Column<int>(type: "INTEGER", nullable: false),
                     TeamId = table.Column<int>(type: "INTEGER", nullable: false),
+                    ChannelId = table.Column<string>(type: "TEXT", nullable: true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     HP = table.Column<int>(type: "INTEGER", nullable: false),
                     MaxHP = table.Column<int>(type: "INTEGER", nullable: false),
@@ -95,38 +97,37 @@ namespace DiscordRPGController.Migrations
                     ATK = table.Column<int>(type: "INTEGER", nullable: false),
                     DEF = table.Column<int>(type: "INTEGER", nullable: false),
                     Dice = table.Column<int>(type: "INTEGER", nullable: false),
-                    statuses = table.Column<string>(type: "TEXT", nullable: false),
                     LastUpdated = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Combatant", x => x.Id);
+                    table.PrimaryKey("PK_Combatants", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Combatant_Players_PlayerCharacterId",
+                        name: "FK_Combatants_Players_PlayerCharacterId",
                         column: x => x.PlayerCharacterId,
                         principalTable: "Players",
                         principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_Combatant_Team_TeamId",
+                        name: "FK_Combatants_Teams_TeamId",
                         column: x => x.TeamId,
-                        principalTable: "Team",
+                        principalTable: "Teams",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Combatant_PlayerCharacterId",
-                table: "Combatant",
+                name: "IX_Combatants_PlayerCharacterId",
+                table: "Combatants",
                 column: "PlayerCharacterId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Combatant_TeamId",
-                table: "Combatant",
+                name: "IX_Combatants_TeamId",
+                table: "Combatants",
                 column: "TeamId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Team_BattleId",
-                table: "Team",
+                name: "IX_Teams_BattleId",
+                table: "Teams",
                 column: "BattleId");
         }
 
@@ -134,13 +135,13 @@ namespace DiscordRPGController.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Combatant");
+                name: "Combatants");
 
             migrationBuilder.DropTable(
                 name: "Players");
 
             migrationBuilder.DropTable(
-                name: "Team");
+                name: "Teams");
 
             migrationBuilder.DropTable(
                 name: "Battles");

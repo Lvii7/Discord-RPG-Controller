@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DiscordRPGController.Migrations
 {
     [DbContext(typeof(BotDbContext))]
-    [Migration("20260331181017_Patch1")]
-    partial class Patch1
+    [Migration("20260401234317_patch0")]
+    partial class patch0
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -52,6 +52,9 @@ namespace DiscordRPGController.Migrations
 
                     b.Property<int>("ATK")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChannelId")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("DEF")
                         .HasColumnType("INTEGER");

@@ -18,16 +18,34 @@ namespace DiscordRPGController.commands.slash
             // this sends an empty message so it can be edited later.
             await ctx.DeferAsync();
 
+            int rollingHP = 100;
+
             var embedMessage = new DiscordEmbedBuilder
             {
                 Color = DiscordColor.Chartreuse,
-                Description = $"# TEST\nHi {ctx.User.Username}!"
+                Description = $"## `[{rollingHP,3}]`"
             };
 
             await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(embedMessage));
 
+            while (rollingHP > 0 )
+            {
+                rollingHP--;
+
+                var embedMessage2 = new DiscordEmbedBuilder
+                {
+                    Color = DiscordColor.Chartreuse,
+                    Description = $"## `[{rollingHP,3}]`"
+                };
+
+                await Task.Delay(100);
+
+                await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(embedMessage2));
+
+            }
+
         }
 
-        
+
     }
 }

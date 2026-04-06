@@ -22,14 +22,14 @@ namespace DiscordRPGController.ui
 {
     public class DisplayBattleMembers
     {
-       public static DiscordMessageBuilder Format(List<Combatant> combatants)
+       public static List<DiscordEmbed> Format(List<Combatant> combatants)
         {
-            var message = new DiscordMessageBuilder();
+            var message = new List<DiscordEmbed>();
 
             foreach (var member in combatants)
             {
                 var embed = CharacterUI.BattleProfile(member);
-                message.AddEmbed(embed);
+                message.Add(embed);
             }
 
             return message;

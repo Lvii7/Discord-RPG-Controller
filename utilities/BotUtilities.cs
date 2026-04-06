@@ -1,4 +1,6 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using DiscordRPGController.models;
+using DiscordRPGController.data;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -14,14 +16,45 @@ namespace DiscordRPGController.utilities
 {
     public class BotUtilities
     {
-        
+        // checks if there already is a battle ongoing in the channel a command is called
+        public static async Task<bool> BattleOngoing(BotDbContext db, string channelId)
+        {
+            try
+            {
+                return await db.Battles.AnyAsync(b => b.ChannelId == channelId);
 
-        
+            } catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return false;
+            }
+        }
 
-        
+        // checks if Combatants exist in the current battle
+
+        // i need channelId to check if the combatants exist IN the channel the command is called from. maybe it should be the first one up.
+        // 
+        public static async Task<bool> CombatantsExist(BotDbContext db, string channelId, string[] combatantList)
+        {
+            bool allCombatantsValid = true;
+            foreach (var member in combatantList)
+            {
+                Console.WriteLine($"this guy: '{member}'");
+                if (await db.Battles.AnyAsync(b => b.ChannelId == channelId && 
+                                              b.Teams.Any( t => t.Members.Any( m => m.Name.ToLower() == member.ToLower() ))))
+                {
+
+                } else
+                {
+                    allCombatantsValid = false;
+                }
+            }
+            return allCombatantsValid;
+        }
+
         public class EmojiData
         {
-            public List<EmojiInfo> Emojis { get; set; }
+            public required List<EmojiInfo> Emojis { get; set; }
         }
 
         public class EmojiInfo

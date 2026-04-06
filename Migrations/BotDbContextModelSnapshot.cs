@@ -50,6 +50,9 @@ namespace DiscordRPGController.Migrations
                     b.Property<int>("ATK")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ChannelId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DEF")
                         .HasColumnType("INTEGER");
 

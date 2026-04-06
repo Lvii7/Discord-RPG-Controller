@@ -1,6 +1,7 @@
 ﻿using DiscordRPGController.data;
 using DiscordRPGController.models;
 using DiscordRPGController.ui;
+using DiscordRPGController.utilities;
 using DSharpPlus.CommandsNext.Converters;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
@@ -21,14 +22,6 @@ namespace DiscordRPGController.commands.slash
         {
             Console.WriteLine($"\n= = = = = = = = = = = = = = = = = = = = = = =\n{ctx.User.Username} called \"battle -> startTeam (slash)\"");
 
-            /*
-            the idea here is to have all 4 teams as separate parameters
-            instead of messages the user will fill them out all at once
-            team count is no longer necessary
-            the code goes through the lists of teams and checks if they're all valid
-            if so then the battle is created
-            */
-
             await ctx.DeferAsync();
             var userId = ctx.User.Id;
 
@@ -37,19 +30,16 @@ namespace DiscordRPGController.commands.slash
             char separator = '|';
             var interactivity = Program.Client.GetInteractivity();
 
-            // accesses the database. everything fine by here. live commenting lvii
             var options = new DbContextOptionsBuilder<BotDbContext>()
-                .UseSqlite("Data Source=bot.db")
-                .Options;
+                     .UseSqlite("Data Source=bot.db")
+                     .Options;
             using var db = new BotDbContext(options);
 
-            var existing = await db.Battles.FirstOrDefaultAsync(p => p.ChannelId == channelId);
-
-            // checks if there's already a battle on the channel
-            if (existing != null)
+            if (await BotUtilities.BattleOngoing(db, channelId))
             {
-                Console.WriteLine($"{ctx.User.Username} character {channelId} already exist");
-                await ctx.Channel.SendMessageAsync("There's already an ongoing battle in this channel!");
+                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(
+                    $"There's already a battle in this channel!"
+                ));
                 return;
             }
 
@@ -58,12 +48,13 @@ namespace DiscordRPGController.commands.slash
             string[] teamList = { team1, team2, team3, team4 };
             for (int i = 0; i < 4; i++)
             {
-                Console.WriteLine($"Team {i+1} -> {teamList[i]}");
+                Console.WriteLine($"Team {i + 1} -> {teamList[i]}");
                 if (teamList[i].Length > 0)
                 {
                     teamCount++;
                 }
-            };
+            }
+            ;
             Console.WriteLine($"Team count: {teamCount}");
 
             // creating a new battle
@@ -74,19 +65,28 @@ namespace DiscordRPGController.commands.slash
                 Teams = new List<Team>()
             };
 
+            // list of emojis to add next to the teams to make them cute
+            string[] teamEmojiNameList = { ":red_square:", ":blue_square:", ":yellow_square:", ":green_square:" };
+            string membersSorted = "";
+
             try
             {
                 for (var i = 0; i < teamCount; i++)
                 {
                     var team = new Team
                     {
-                        TeamNumber = (i+1),
+                        TeamNumber = (i + 1),
                         Battle = newBattle,
                         Members = new List<Combatant>()
                     };
-                    Console.WriteLine($"New blank Team {i+1}/{teamCount} has been created!");
+
+                    List<string> teamMembersList = new List<string>();
+
+                    Console.WriteLine($"New blank Team {i + 1}/{teamCount} has been created!");
                     var teamListSplit = (teamList[i].Split(separator));
 
+
+                    // -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-
                     foreach (var member in teamListSplit)
                     {
                         Console.WriteLine($"\"{member}\"");
@@ -97,12 +97,14 @@ namespace DiscordRPGController.commands.slash
                         if (foundPlayer != null)
                         {
                             Console.WriteLine($"Found character: {foundPlayer.Name}");
+                            teamMembersList.Add(foundPlayer.Name);
                             var combatant = new Combatant
                             {
                                 PlayerCharacterId = foundPlayer.Id,
                                 PlayerCharacter = foundPlayer,
                                 Name = foundPlayer.Name,
                                 Team = team,
+                                ChannelId = channelId,
 
                                 HP = foundPlayer.HP,
                                 MaxHP = foundPlayer.MaxHP,
@@ -120,19 +122,24 @@ namespace DiscordRPGController.commands.slash
                         else
                         {
                             Console.WriteLine($"something went wrong");
-                            await ctx.Channel.SendMessageAsync($"Could not find character **{memberTrimmed.ToUpper()}** from Team {(i+1)}." +
-                                                               $"They were either misspelled, or they don't exist...!");
+                            await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"Could not find character **{memberTrimmed.ToUpper()}** from Team {(i + 1)}." +
+                                                               $"They were either misspelled, or they don't exist...!"));
                             return;
                         }
 
                     }
+                    // -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-
+                    string teamMembers = string.Join(", ", teamMembersList.ToArray());
+                    membersSorted = $"{membersSorted}{DiscordEmoji.FromName(Program.Client, teamEmojiNameList[i])} - {teamMembers}\n";
                     newBattle.Teams.Add(team);
                     Console.WriteLine($"throw THis if you write the team {team}");
                 }
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine($"\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n\n{ex}\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
                 await ctx.Channel.SendMessageAsync("something went wrong!");
+                return;
             }
 
             var allCombatants = newBattle.Teams
@@ -141,10 +148,9 @@ namespace DiscordRPGController.commands.slash
 
             var names = string.Join(" | ", allCombatants.Select(c => c.Name));
 
-            // TODO: skip this part if there's only one team
-            await ctx.Channel.SendMessageAsync(
-                $"Define turn order:\n{names}\n\nUse | to separate."
-            );
+            await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(
+                $"{membersSorted}\nDefine turn order! Use | to separate. Characters will act in the order typed in."
+            ));
 
             var orderResponse = await interactivity.WaitForMessageAsync(
                 m => m.Author.Id == userId
@@ -191,43 +197,175 @@ namespace DiscordRPGController.commands.slash
                 .OrderBy(c => c.TurnOrder)
                 .ToListAsync();
 
+            // sending the embeds to the channel
             var embeds = DisplayBattleMembers.Format(combatants);
-            await ctx.Channel.SendMessageAsync(embeds);
+            var message = new DiscordMessageBuilder()
+                .AddEmbeds(embeds);
 
-            await ctx.Channel.SendMessageAsync("battle ready baby");
+            // telling the channel whose turn it is
+            var combatantFirstTurn = await db.Combatants
+                // SQLite starts sorting from 1. so "1" is the first number
+                .Where(c => c.TurnOrder == 1)
+                .FirstOrDefaultAsync();
 
+            await ctx.Channel.SendMessageAsync(message);
 
+            await ctx.Channel.SendMessageAsync($"***{combatantFirstTurn.Name}**'s turn!*");
 
-            /*var textMessage = result;
-
-            var embedMessage = new DiscordEmbedBuilder
-            {
-                Color = DiscordColor.Gold,
-                Description = $"# {result}!"
-            };
-
-            await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"{textMessage}\n\n*Now, say something!*"));
-
-            for (int i = 0; i < 4; i++)
-            {
-                var response1 = await ctx.Channel.GetNextMessageAsync(message => message.Author.Id == userId);
-                if (response1.TimedOut)
-                {
-                    await ctx.Channel.SendMessageAsync("youuuu took 2 long!");
-                }
-                ;
-                var responseAdd = $"{(i + 1)} - {response1.Result.Content}";
-                textMessage = $"{textMessage}\n{responseAdd}";
-                if (i == 3)
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"{textMessage}"));
-                }
-                else
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"{textMessage}\n\n*{(3 - i)} more time(s)!*"));
-                }
-                ;
-            }*/
         }
+
+
+        // TODO: bunch up all the reasons one can't attack into one single method to avoid having to rewrite them all the time
+        // like if someone's frozen or dead or out of energy, etc.
+        [SlashCommandGroup("attack", "attack")]
+        public class AttackCommandsContainer : ApplicationCommandModule
+        {
+            [SlashCommand("basic", "Not quite just yet")]
+            public async Task AttackBasic(InteractionContext ctx,
+                [Option("attacker", "Who's attacking? Only accepds one entry")] string attacker,
+                [Option("dice-roll", "What were the dice rolls? Separate each of them with /")] string diceRoll,
+                [Option("targets", "Who's getting targeted by the attack? Separate each member with /")] string targets)
+            {
+                Console.WriteLine($"\n= = = = = = = = = = = = = = = = = = = = = = =\n{ctx.User.Username} called \"attack -> solo (slash)\"");
+                Console.WriteLine($"ATTACKER: {attacker}\nTARGET(s): {targets}");
+                // getting started idk
+                await ctx.DeferAsync();
+                var userId = ctx.User.Id;
+                var channelId = ctx.Channel.Id.ToString();
+                var interactivity = Program.Client.GetInteractivity();
+
+                var options = new DbContextOptionsBuilder<BotDbContext>()
+                    .UseSqlite("Data Source=bot.db")
+                    .Options;
+                using var db = new BotDbContext(options);
+
+                if (!await BotUtilities.BattleOngoing(db, channelId))
+                {
+                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(
+                        $"There's no battle in this channel!"
+                    ));
+                    return;
+                }
+
+                // validates everyone involved to see if it can proceed
+                var membersToValidate = ($"{attacker} | {targets}").Split('|');
+                var targetsList = targets.Split('|');
+
+                Console.WriteLine($"\n1.\n'{string.Join("', '", membersToValidate)}'\n'{string.Join("', '", targetsList)}'");
+
+                List<Combatant> hurtCombatantList = new List<Combatant>();
+
+                for (int i = 0; i < membersToValidate.Length; i++)
+                {
+                    if (i == 0)
+                    {
+                        attacker = attacker.Trim(' ');
+                        Console.WriteLine($"\n2.{1 + i}\n{attacker}");
+                    }
+                    else
+                    {
+                        targetsList[(i - 1)] = targetsList[(i - 1)].Trim(' ');
+                        Console.WriteLine($"\n2.{1 + i}\n{targetsList[i - 1]}");
+                    }
+                    membersToValidate[i] = membersToValidate[i].Trim(' ');
+                }
+
+                if (!await BotUtilities.CombatantsExist(db, channelId, membersToValidate))
+                {
+                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(
+                        $"One or more names are incorrect!"
+                    ));
+                    return;
+                }
+
+                // put everything else here
+
+                int dice = Int32.Parse(diceRoll);
+
+                List<string> occuranceList = new List<string>();
+
+                var attackerCombatant = await db.Combatants
+                    .Include(c => c.Team).ThenInclude(t => t.Battle)
+                    .Include(c => c.PlayerCharacter)
+                    .FirstOrDefaultAsync(b => b.ChannelId == channelId && b.Name.ToLower() == attacker.ToLower());
+
+                // TODO: replace this with a general method for any reason why the attacker wouldn't be able to act
+                if (attackerCombatant != null)
+                {
+                    if (attackerCombatant.Energy < 2)
+                    {
+                        var embed = new List<Combatant>();
+                        embed.Add(attackerCombatant);
+                        var attackerEmbed = DisplayBattleMembers.Format(embed);
+                        await ctx.EditResponseAsync(new DiscordWebhookBuilder()
+                            .WithContent($"{attackerCombatant.Name} doesn't have enough Energy to attack!")
+                            .AddEmbeds(attackerEmbed));
+                        return;
+                    }
+
+                    attackerCombatant.Energy -= 2;
+
+                    foreach (var member in targetsList)
+                    {
+                        var target = await db.Combatants
+                            .Include(c => c.Team).ThenInclude(t => t.Battle)
+                            .FirstOrDefaultAsync(b => b.ChannelId == channelId && b.Name.ToLower() == member.ToLower());
+
+                        if (target != null)
+                        {
+                            // TODO: remember to prevent the attacker from acting if they're downed
+
+                            int damageDealt = Math.Max(0, dice + attackerCombatant.ATK - target.DEF);
+                            occuranceList.Add($"***{target.Name}** took {damageDealt} damage!*");
+                            target.HP = Math.Max(0, target.HP - damageDealt);
+                            if (target.HP <= 0)
+                            {
+                                occuranceList.Add($"***{target.Name}** is DOWNED!*");
+                            }
+
+                            hurtCombatantList.Add(target);
+                            Console.WriteLine($"{target.Name} got attacked and now they have {target.HP}/{target.MaxHP} HP");
+                            db.Combatants.Update(target);
+                        }
+                    }
+
+                    db.Combatants.Update(attackerCombatant);
+
+                    await db.SaveChangesAsync();
+
+                    var hurtCombatants = await db.Combatants
+                        .Include(c => c.Team).ThenInclude(t => t.Battle)
+                        .Where(c => c.Team.Battle.ChannelId == ctx.Channel.Id.ToString() && targetsList.Contains(c.Name.ToLower()))
+                        .OrderBy(c => c.TurnOrder)
+                        .ToListAsync();
+
+                    var embeds = DisplayBattleMembers.Format(hurtCombatants);
+
+                    string occuranceString = string.Join("\n", occuranceList);
+
+                    await ctx.EditResponseAsync(new DiscordWebhookBuilder()
+                        .WithContent($"***{attackerCombatant.Name}** attacked!!*\n{occuranceString}")
+                        .AddEmbeds(embeds));
+
+                    if (attackerCombatant.Energy > 0)
+                    {
+                        await ctx.Channel.SendMessageAsync($"***{attackerCombatant.Name}** has **{attackerCombatant.Energy}/{attackerCombatant.PlayerCharacter.Energy}** Energy left!*");
+                    }
+                    else
+                    {
+                        // TODO: invent a general energyless method to throw
+
+                        await ctx.Channel.SendMessageAsync($"***{attackerCombatant.Name}** has no Energy left!*");
+
+                    }
+
+                }
+
+            }
+        }
+
+
     }
+
+
 }
